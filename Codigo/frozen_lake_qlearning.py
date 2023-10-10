@@ -27,6 +27,7 @@ class Params(NamedTuple):
     state_size: int  # Number of possible states
     proba_frozen: float  # Probability that a tile is frozen
     savefig_folder: Path  # Root folder where plots are saved
+    max_steps : int # Number of max steps in the environment
 
 
 params = Params(
@@ -36,12 +37,13 @@ params = Params(
     epsilon=0.1,
     map_size=5,
     seed=123,
-    is_slippery=False,
+    is_slippery=True,
     n_runs=20,
     action_size=None,
     state_size=None,
     proba_frozen=0.9,
-    savefig_folder=Path("./../_static/img/tutorials/"),
+    savefig_folder=Path("./../Media/img/frozenlake/"),
+    max_steps = 250,
 )
 params
 
@@ -275,7 +277,7 @@ def plot_states_actions_distribution(states, actions, map_size):
 
 ####################### RUNNING DIFFERENT ENVIROMENTS ##################################
 
-map_sizes = [4]
+map_sizes = [9]
 res_all = pd.DataFrame()
 st_all = pd.DataFrame()
 
@@ -287,6 +289,7 @@ for map_size in map_sizes:
         desc=generate_random_map(
             size=map_size, p=params.proba_frozen, seed=params.seed
         ),
+        max_episode_steps = params.max_steps,
     )
 
     params = params._replace(action_size=env.action_space.n)
