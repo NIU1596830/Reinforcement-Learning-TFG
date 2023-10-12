@@ -31,14 +31,14 @@ class Params(NamedTuple):
 
 
 params = Params(
-    total_episodes=2000,
+    total_episodes=20000,
     learning_rate=0.8,
     gamma=0.95,
     epsilon=0.1,
     map_size=5,
     seed=123,
     is_slippery=True,
-    n_runs=20,
+    n_runs=5,
     action_size=None,
     state_size=None,
     proba_frozen=0.9,
@@ -343,5 +343,24 @@ def plot_steps_and_rewards(rewards_df, steps_df):
     fig.savefig(params.savefig_folder / img_title, bbox_inches="tight")
     plt.show()
 
-
-plot_steps_and_rewards(res_all, st_all)
+def winrate(rewards,n_episodes,n_runs):
+    # Crear un array para almacenar los conteos de 0 y 1
+    episodes_per_it = int(n_episodes/10)
+    conteos = np.zeros((episodes_per_it, 2), dtype=int)
+    
+    # Iterar sobre cada columna de la matriz
+    for i in range(n_runs):
+        columna = rewards[:, i]
+    
+        for j in range(10):
+            new_columna=columna[(episodes_per_it)*j:(episodes_per_it)*(j+1)]
+            # Contar los elementos iguales a 0 y 1 en la columna
+            #conteos[(episodes_per_it)*j:(episodes_per_it)*(j+1), 0] = np.count_nonzero(new_columna == 0)
+            #conteos[(episodes_per_it)*j:(episodes_per_it)*(j+1), 1] = np.count_nonzero(new_columna == 1)
+            conteos[:, 0] = np.count_nonzero(new_columna == 0)
+            conteos[:, 1] = np.count_nonzero(new_columna == 1)
+            # Imprimir los conteos
+            print(f"Run number {i}, Percentile number{j*10}%: Loses = {conteos[j, 0]}, Wins = {conteos[j, 1]}, Winrate = {int(conteos[j,1]/(episodes_per_it)*100)}")
+    
+winrate(rewards,params.total_episodes,params.n_runs)
+#plot_steps_and_rewards(res_all, st_all)
