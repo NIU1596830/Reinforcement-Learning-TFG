@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
+import copy
 
 import gymnasium as gym
 from gymnasium.envs.toy_text.frozen_lake import generate_random_map
@@ -119,3 +120,55 @@ def policy_improvement(nA, nS, env, V, gamma=1):
 #policy = policy_improvement(nA, nS, env, V)
 #print(policy)
 
+## Policy iteration
+#
+
+def policy_iteration(nA, nS, env, gamma=1, theta=1e-8):
+    policy = np.ones([nS, nA]) / nA
+    while True:
+        V = policy_evaluation(nS, env, policy, gamma, theta)
+        new_policy = policy_improvement(nA, nS, env, V)
+        
+        # OPTION 1: stop if the policy is unchanged after an improvement step
+        if (new_policy == policy).all():
+            break;
+        
+        # OPTION 2: stop if the value function estimates for successive policies has converged
+        # if np.max(abs(policy_evaluation(env, policy) - policy_evaluation(env, new_policy))) < theta*1e2:
+        #    break;
+        
+        policy = copy.copy(new_policy)
+    return policy, V
+
+# obtain the optimal policy and optimal state-value function
+policy_pi, V_pi = policy_iteration(nA, nS, env)
+
+# print the optimal policy
+print("\nOptimal Policy (LEFT = 0, DOWN = 1, RIGHT = 2, UP = 3):")
+print(policy_pi,"\n")
+plot_values(V_pi)
+print("----")
+## Value iteration
+#
+
+def value_iteration(nA, nS, env, gamma=1, theta=1e-8):
+    V = np.zeros(nS)
+    while True:
+        delta = 0
+        for s in range(nS):
+            v = V[s]
+            V[s] = max(q_from_v(nA, env, V, s, gamma))
+            delta = max(delta,abs(V[s]-v))
+        if delta < theta:
+            break
+    policy = policy_improvement(nA, nS, env, V, gamma)
+    return policy, V
+
+policy_vi, V_vi = value_iteration(nA, nS, env)
+
+# print the optimal policy
+print("\nOptimal Policy (LEFT = 0, DOWN = 1, RIGHT = 2, UP = 3):")
+print(policy_vi,"\n")
+
+# plot the optimal state-value function
+plot_values(V_vi)
