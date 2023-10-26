@@ -31,9 +31,8 @@ def plot_values(V):
     
 class Params(NamedTuple):
     total_episodes: int  # Total episodes
-    learning_rate: float  # Learning rate
     gamma: float  # Discounting rate
-    epsilon: float  # Exploration probability
+    theta: float  # Very small positive number that is used to decide if the estimate has sufficiently converged to the true value function
     map_size: int  # Number of tiles of one side of the squared environment
     seed: int  # Define a seed so that we get reproducible results
     is_slippery: bool  # If true the player will move in intended direction with probability of 1/3 else will move in either perpendicular direction with equal probability of 1/3 in both directions
@@ -47,9 +46,8 @@ class Params(NamedTuple):
 
 params = Params(
     total_episodes=2000,
-    learning_rate=0.8,
-    gamma=0.95,
-    epsilon=0.1,
+    gamma=1,
+    theta=1e-8,
     map_size=5,
     seed=123,
     is_slippery=True,
@@ -57,7 +55,7 @@ params = Params(
     action_size=None,
     state_size=None,
     proba_frozen=0.9,
-    savefig_folder=Path("./../Media/img/frozenlake/"),
+    savefig_folder=Path("./../Media/img/dynamic_programming/"),
     max_steps = 250,
 )
 params
@@ -316,7 +314,7 @@ for map_size in map_sizes:
     nS = env.observation_space.n
     nA = env.action_space.n
     
-    policy_vi, V_vi = value_iteration(nA, nS, env)
+    policy_vi, V_vi = value_iteration(nA, nS, env, params.gamma, params.theta)
     
     print("\nOptimal Policy (LEFT = 0, DOWN = 1, RIGHT = 2, UP = 3):")
     print(policy_vi,"\n")
