@@ -237,22 +237,49 @@ def postprocess(episodes, params, rewards, steps, map_size):
     st["map_size"] = np.repeat(f"{map_size}x{map_size}", st.shape[0])
     return res, st
 
+# TODO: Test function
+def dp_get_decision(policy_vi):
+    """ Get the best direction for each row, considering
+        -1: " ",
+        0: "←", 0.1: "←|↓", 0.2: "←|→", 0.3:"←|↑",
+        1: "↓", 1.2: "↓|→", 1.3: "↓|↑",
+        2: "→", 2.3: "→|↑",
+        3: "↑"
+    """
+    size = policy_vi.shape[0]
+    dp_decision = np.array()
+    
+    for row in policy_vi:
+        if max(row) == 0.25: # Equivalent decision = hole or finish
+            dp_decision.append(-1)
+        elif max(row) == 1:
+            dp_decision.append(row.argmax)
+        else:
+            indexs = row.argmax
+            div = 1
+            value = 0
+            for next_index in indexs:
+                value = value + (next_index / div)
+                div = div*10
+            dp_decision.append(value)
+    
+    return dp_decision
+
 # TODO: Change to DP
-def qtable_directions_map(qtable, map_size):
+def policy_directions_map(policy_vi, map_size):
     """Get the best learned action & map it to arrows."""
-    qtable_val_max = qtable.max(axis=1).reshape(map_size, map_size)
-    qtable_best_action = np.argmax(qtable, axis=1).reshape(map_size, map_size)
-    directions = {0: "←", 1: "↓", 2: "→", 3: "↑"}
-    qtable_directions = np.empty(qtable_best_action.flatten().shape, dtype=str)
-    eps = np.finfo(float).eps  # Minimum float number on the machine
-    for idx, val in enumerate(qtable_best_action.flatten()):
-        if qtable_val_max.flatten()[idx] > eps:
-            # Assign an arrow only if a minimal Q-value has been learned as best action
-            # otherwise since 0 is a direction, it also gets mapped on the tiles where
-            # it didn't actually learn anything
-            qtable_directions[idx] = directions[val]
-    qtable_directions = qtable_directions.reshape(map_size, map_size)
-    return qtable_val_max, qtable_directions
+    dp_decision = dp_get_decision(policy_vi)
+    directions = {-1: " ",
+                  0: "←", 0.1: "←|↓", 0.2: "←|→", 0.3:"←|↑",
+                  1: "↓", 1.2: "↓|→", 1.3: "↓|↑",
+                  2: "→", 2.3: "→|↑",
+                  3: "↑"}
+    # TODO: Change to more optimal function with float.is_integer()
+    # Change policy array to directions array
+    for idx, val in enumerate(dp_decision):
+        dp_decision[idx] = directions[val]
+
+    return dp_decision
 
 # TODO: Change to DP
 def plot_q_values_map(qtable, env, map_size):

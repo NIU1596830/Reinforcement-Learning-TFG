@@ -28,10 +28,11 @@ class Params(NamedTuple):
     proba_frozen: float  # Probability that a tile is frozen
     savefig_folder: Path  # Root folder where plots are saved
     max_steps : int # Number of max steps in the environment
+    map_sizes : list # List with the dimensions of each map we want to run
 
 
 params = Params(
-    total_episodes=20000,
+    total_episodes=2000,
     learning_rate=0.8,
     gamma=0.95,
     epsilon=0.1,
@@ -44,6 +45,7 @@ params = Params(
     proba_frozen=0.9,
     savefig_folder=Path("./../Media/img/frozenlake/"),
     max_steps = 250,
+    map_sizes = [4],
 )
 params
 
@@ -229,6 +231,7 @@ def qtable_directions_map(qtable, map_size):
 def plot_q_values_map(qtable, env, map_size):
     """Plot the last frame of the simulation and the policy learned."""
     qtable_val_max, qtable_directions = qtable_directions_map(qtable, map_size)
+    print("AQUI")
     print(qtable_directions)
     print(qtable_val_max)
     # Plot the last frame
@@ -277,7 +280,7 @@ def plot_states_actions_distribution(states, actions, map_size):
 
 ####################### RUNNING DIFFERENT ENVIROMENTS ##################################
 
-map_sizes = [9]
+map_sizes = params.map_sizes
 res_all = pd.DataFrame()
 st_all = pd.DataFrame()
 
