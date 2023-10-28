@@ -247,28 +247,46 @@ def dp_get_decision(policy_vi):
         3: "↑"
     """
     size = policy_vi.shape[0]
-    dp_decision = np.array()
+    dp_decision = []
+    heatmap = []
     
     for row in policy_vi:
         if max(row) == 0.25: # Equivalent decision = hole or finish
             dp_decision.append(-1)
+            heatmap.append(0)
         elif max(row) == 1:
-            dp_decision.append(row.argmax)
+            max_value = max(row)
+            indexs = [index for index in range(len(row)) if row[index] == max_value]
+            dp_decision.append(indexs[0])
+            heatmap.append(1)
         else:
-            indexs = row.argmax
+            indexs = np.array(row.argmax)
+            max_value = max(row)
+            indexs = [index for index in range(len(row)) if row[index] == max_value]
+            print("AQUIIIII")
+            print(row)
+            print("---")
+            print(indexs)
             div = 1
             value = 0
+            counter = 0
             for next_index in indexs:
                 value = value + (next_index / div)
                 div = div*10
+                counter += 1
             dp_decision.append(value)
+            heatmap.append(1/counter)
+            
+    print(policy_vi)
+    print("----------")
+    print(dp_decision)
     
-    return dp_decision
+    return dp_decision, heatmap
 
 # TODO: Change to DP
 def policy_directions_map(policy_vi, map_size):
     """Get the best learned action & map it to arrows."""
-    dp_decision = dp_get_decision(policy_vi)
+    dp_decision, heatmap = dp_get_decision(policy_vi)
     directions = {-1: " ",
                   0: "←", 0.1: "←|↓", 0.2: "←|→", 0.3:"←|↑",
                   1: "↓", 1.2: "↓|→", 1.3: "↓|↑",
@@ -279,24 +297,27 @@ def policy_directions_map(policy_vi, map_size):
     for idx, val in enumerate(dp_decision):
         dp_decision[idx] = directions[val]
 
-    return dp_decision
+    return dp_decision, heatmap
 
-# TODO: Change to DP
-def plot_q_values_map(qtable, env, map_size):
+def plot_policy_map(policy_vi, env, map_size):
     """Plot the last frame of the simulation and the policy learned."""
-    qtable_val_max, qtable_directions = qtable_directions_map(qtable, map_size)
-    print(qtable_directions)
-    print(qtable_val_max)
-    # Plot the last frame
+    dp_decision, heatmap = policy_directions_map(policy_vi, map_size)
+    heatmap = np.array(heatmap)
+    heatmap = heatmap.reshape((map_size,map_size))
+    print(heatmap)
+    dp_decision = np.array(dp_decision)
+    dp_decision = dp_decision.reshape((map_size,map_size))
+    print(dp_decision)
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(15, 5))
     ax[0].imshow(env.render())
     ax[0].axis("off")
+    # Plot the last frame
     ax[0].set_title("Last frame")
-
+    
     # Plot the policy
     sns.heatmap(
-        qtable_val_max,
-        annot=qtable_directions,
+        heatmap,
+        annot=dp_decision,
         fmt="",
         ax=ax[1],
         cmap=sns.color_palette("Blues", as_cmap=True),
@@ -305,12 +326,12 @@ def plot_q_values_map(qtable, env, map_size):
         xticklabels=[],
         yticklabels=[],
         annot_kws={"fontsize": "xx-large"},
-    ).set(title="Learned Q-values\nArrows represent best action")
+    ).set(title="Optimal Policy\nArrows represent best action")
     for _, spine in ax[1].spines.items():
         spine.set_visible(True)
         spine.set_linewidth(0.7)
         spine.set_color("black")
-    img_title = f"frozenlake_q_values_{map_size}x{map_size}.png"
+    img_title = f"frozenlake_dp_{map_size}x{map_size}.png"
     fig.savefig(params.savefig_folder / img_title, bbox_inches="tight")
     plt.show()
 
@@ -357,7 +378,9 @@ for map_size in map_sizes:
     plot_states_actions_distribution(
         states=all_states, actions=all_actions, map_size=map_size
     )  # Sanity check
-
-    env.close()
     
+    plot_policy_map(policy_vi, env, map_size)
+    
+    env.close()
+
     

@@ -241,6 +241,11 @@ def plot_q_values_map(qtable, env, map_size):
     ax[0].set_title("Last frame")
 
     # Plot the policy
+    print("max value")
+    print(qtable_val_max)
+    print("-----")
+    print("directions")
+    print(qtable_directions)
     sns.heatmap(
         qtable_val_max,
         annot=qtable_directions,
