@@ -10,6 +10,8 @@ from tqdm import tqdm
 import gymnasium as gym
 from gymnasium.envs.toy_text.frozen_lake import generate_random_map
 
+import time # Time calculation
+from memory_profiler import profile # Memory calculation
 
 sns.set_theme()
 
@@ -136,6 +138,7 @@ class EpsilonGreedy:
 #    epsilon=params.epsilon,
 #)
 
+@profile
 def run_env(): # This will be our main function to run our environment until the maximum number of episodes
     rewards = np.zeros((params.total_episodes, params.n_runs))
     steps = np.zeros((params.total_episodes, params.n_runs))
@@ -316,7 +319,18 @@ for map_size in map_sizes:
     )
 
     print(f"Map size: {map_size}x{map_size}")
+    
+    # Start timer
+    start = time.time()
+    
+    # Run environment
     rewards, steps, episodes, qtables, all_states, all_actions = run_env()
+    
+    # Stop timer
+    end = time.time()
+    
+    # Calculate time
+    time = end - start
 
     # Save the results in dataframes
     res, st = postprocess(episodes, params, rewards, steps, map_size)
@@ -368,7 +382,7 @@ def winrate(rewards,n_episodes,n_runs):
             conteos[:, 0] = np.count_nonzero(new_columna == 0)
             conteos[:, 1] = np.count_nonzero(new_columna == 1)
             # Imprimir los conteos
-            print(f"Run number {i}, Percentile number{j*10}%: Loses = {conteos[j, 0]}, Wins = {conteos[j, 1]}, Winrate = {int(conteos[j,1]/(episodes_per_it)*100)}")
+            print(f"Run number {i}, Percentile number {j*10}%: Loses = {conteos[j, 0]}, Wins = {conteos[j, 1]}, Winrate = {int(conteos[j,1]/(episodes_per_it)*100)}")
     
 winrate(rewards,params.total_episodes,params.n_runs)
 #plot_steps_and_rewards(res_all, st_all)

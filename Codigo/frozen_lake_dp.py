@@ -12,6 +12,10 @@ import random
 import gymnasium as gym
 from gymnasium.envs.toy_text.frozen_lake import generate_random_map
 
+import time # Time calculation
+from memory_profiler import profile # Memory calculation
+# import energyusage # Energy report (only works on linux)
+
 
 sns.set_theme()
 
@@ -42,6 +46,7 @@ class Params(NamedTuple):
     proba_frozen: float  # Probability that a tile is frozen
     savefig_folder: Path  # Root folder where plots are saved
     max_steps : int # Number of max steps in the environment
+    calculate_energy: bool # True for energy report
 
 
 params = Params(
@@ -57,6 +62,7 @@ params = Params(
     proba_frozen=0.9,
     savefig_folder=Path("./../Media/img/dynamic_programming/"),
     max_steps = 250,
+    calculate_energy = True,
 )
 params
 
@@ -161,6 +167,7 @@ def index_max_random(row):
     max_row = np.where(row == max_value)[0]
     return random.choice(max_row)
 
+#@profile
 def run_env(): # This will be our main function to run our environment until the maximum number of episodes
     rewards = np.zeros((params.total_episodes, params.n_runs))
     steps = np.zeros((params.total_episodes, params.n_runs))
@@ -237,7 +244,6 @@ def postprocess(episodes, params, rewards, steps, map_size):
     st["map_size"] = np.repeat(f"{map_size}x{map_size}", st.shape[0])
     return res, st
 
-# TODO: Test function
 def dp_get_decision(policy_vi):
     """ Get the best direction for each row, considering
         -1: " ",
@@ -283,7 +289,6 @@ def dp_get_decision(policy_vi):
     
     return dp_decision, heatmap
 
-# TODO: Change to DP
 def policy_directions_map(policy_vi, map_size):
     """Get the best learned action & map it to arrows."""
     dp_decision, heatmap = dp_get_decision(policy_vi)
@@ -368,7 +373,21 @@ for map_size in map_sizes:
     print(policy_vi,"\n")
     
     print(f"Map size: {map_size}x{map_size}")
-    rewards, steps, episodes, all_states, all_actions = run_env()
+    
+    # Start timer
+    start = time.time()
+    
+    # Run environment
+    if (params.calculate_energy):
+        rewards, steps, episodes, all_states, all_actions = energyusage.evaluate(run_env())
+    else:
+        rewards, steps, episodes, all_states, all_actions = run_env()
+    
+    # Stop timer
+    end = time.time()
+    
+    # Calculate time
+    time = end - start
     
     # Save the results in dataframes
     res, st = postprocess(episodes, params, rewards, steps, map_size)
@@ -383,4 +402,24 @@ for map_size in map_sizes:
     
     env.close()
 
+def winrate(rewards,n_episodes,n_runs):
+    # Crear un array para almacenar los conteos de 0 y 1
+    episodes_per_it = int(n_episodes/10)
+    conteos = np.zeros((episodes_per_it, 2), dtype=int)
     
+    # Iterar sobre cada columna de la matriz
+    for i in range(n_runs):
+        columna = rewards[:, i]
+    
+        for j in range(10):
+            new_columna=columna[(episodes_per_it)*j:(episodes_per_it)*(j+1)]
+            # Contar los elementos iguales a 0 y 1 en la columna
+            #conteos[(episodes_per_it)*j:(episodes_per_it)*(j+1), 0] = np.count_nonzero(new_columna == 0)
+            #conteos[(episodes_per_it)*j:(episodes_per_it)*(j+1), 1] = np.count_nonzero(new_columna == 1)
+            conteos[:, 0] = np.count_nonzero(new_columna == 0)
+            conteos[:, 1] = np.count_nonzero(new_columna == 1)
+            # Imprimir los conteos
+            print(f"Run number {i}, Percentile number {j*10}%: Loses = {conteos[j, 0]}, Wins = {conteos[j, 1]}, Winrate = {int(conteos[j,1]/(episodes_per_it)*100)}")
+    
+winrate(rewards,params.total_episodes,params.n_runs)
+print(f"Time of execution: {time} seconds")
