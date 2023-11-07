@@ -12,6 +12,7 @@ from gymnasium.envs.toy_text.frozen_lake import generate_random_map
 
 import time # Time calculation
 from memory_profiler import profile # Memory calculation
+from codecarbon import EmissionsTracker # Energy report
 
 sns.set_theme()
 
@@ -31,6 +32,8 @@ class Params(NamedTuple):
     savefig_folder: Path  # Root folder where plots are saved
     max_steps : int # Number of max steps in the environment
     map_sizes : list # List with the dimensions of each map we want to run
+    calculate_energy : bool # True for energy report
+    plot_results : bool # True for plot results
 
 
 params = Params(
@@ -45,9 +48,11 @@ params = Params(
     action_size=None,
     state_size=None,
     proba_frozen=0.9,
-    savefig_folder=Path("./../Media/img/frozenlake/"),
+    savefig_folder=Path("./../Media/img/qlearning/"),
     max_steps = 250,
-    map_sizes = [4],
+    map_sizes = [4,7,9,11],
+    calculate_energy = False,
+    plot_results = False,
 )
 params
 
@@ -286,67 +291,6 @@ def plot_states_actions_distribution(states, actions, map_size):
     fig.savefig(params.savefig_folder / img_title, bbox_inches="tight")
     plt.show()
 
-####################### RUNNING DIFFERENT ENVIROMENTS ##################################
-
-map_sizes = params.map_sizes
-res_all = pd.DataFrame()
-st_all = pd.DataFrame()
-
-for map_size in map_sizes:
-    env = gym.make(
-        "FrozenLake-v1",
-        is_slippery=params.is_slippery,
-        render_mode="rgb_array",
-        desc=generate_random_map(
-            size=map_size, p=params.proba_frozen, seed=params.seed
-        ),
-        max_episode_steps = params.max_steps,
-    )
-
-    params = params._replace(action_size=env.action_space.n)
-    params = params._replace(state_size=env.observation_space.n)
-    env.action_space.seed(
-        params.seed
-    )  # Set the seed to get reproducible results when sampling the action space
-    learner = Qlearning(
-        learning_rate=params.learning_rate,
-        gamma=params.gamma,
-        state_size=params.state_size,
-        action_size=params.action_size,
-    )
-    explorer = EpsilonGreedy(
-        epsilon=params.epsilon,
-    )
-
-    print(f"Map size: {map_size}x{map_size}")
-    
-    # Start timer
-    start = time.time()
-    
-    # Run environment
-    rewards, steps, episodes, qtables, all_states, all_actions = run_env()
-    
-    # Stop timer
-    end = time.time()
-    
-    # Calculate time
-    time = end - start
-
-    # Save the results in dataframes
-    res, st = postprocess(episodes, params, rewards, steps, map_size)
-    res_all = pd.concat([res_all, res])
-    st_all = pd.concat([st_all, st])
-    qtable = qtables.mean(axis=0)  # Average the Q-table between runs
-
-    plot_states_actions_distribution(
-        states=all_states, actions=all_actions, map_size=map_size
-    )  # Sanity check
-    plot_q_values_map(qtable, env, map_size)
-
-    env.close()
-    
-# Plot steps and rewards
-
 def plot_steps_and_rewards(rewards_df, steps_df):
     """Plot the steps and rewards from dataframes."""
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(15, 5))
@@ -382,7 +326,82 @@ def winrate(rewards,n_episodes,n_runs):
             conteos[:, 0] = np.count_nonzero(new_columna == 0)
             conteos[:, 1] = np.count_nonzero(new_columna == 1)
             # Imprimir los conteos
-            print(f"Run number {i}, Percentile number {j*10}%: Loses = {conteos[j, 0]}, Wins = {conteos[j, 1]}, Winrate = {int(conteos[j,1]/(episodes_per_it)*100)}")
+            print(f"Map {map_size} Run number {i}, Percentile number {j*10}%: Loses = {conteos[j, 0]}, Wins = {conteos[j, 1]}, Winrate = {int(conteos[j,1]/(episodes_per_it)*100)}")
+
+
+####################### RUNNING DIFFERENT ENVIROMENTS ##################################
+
+map_sizes = params.map_sizes
+res_all = pd.DataFrame()
+st_all = pd.DataFrame()
+
+# Start timer
+start = time.time()
+
+if (params.calculate_energy): # Calculate energy
+    tracker = EmissionsTracker(project_name="QLearning")
+    tracker.start()
+
+for map_size in map_sizes:
+    env = gym.make(
+        "FrozenLake-v1",
+        is_slippery=params.is_slippery,
+        render_mode="rgb_array",
+        desc=generate_random_map(
+            size=map_size, p=params.proba_frozen, seed=params.seed
+        ),
+        max_episode_steps = params.max_steps,
+    )
+
+    params = params._replace(action_size=env.action_space.n)
+    params = params._replace(state_size=env.observation_space.n)
+    env.action_space.seed(
+        params.seed
+    )  # Set the seed to get reproducible results when sampling the action space
+    learner = Qlearning(
+        learning_rate=params.learning_rate,
+        gamma=params.gamma,
+        state_size=params.state_size,
+        action_size=params.action_size,
+    )
+    explorer = EpsilonGreedy(
+        epsilon=params.epsilon,
+    )
+
+    print(f"Map size: {map_size}x{map_size}")
     
-winrate(rewards,params.total_episodes,params.n_runs)
-#plot_steps_and_rewards(res_all, st_all)
+    
+    # Run environment
+    rewards, steps, episodes, qtables, all_states, all_actions = run_env()
+    
+    
+    if (params.plot_results): 
+        # Save the results in dataframes
+        res, st = postprocess(episodes, params, rewards, steps, map_size)
+        res_all = pd.concat([res_all, res])
+        st_all = pd.concat([st_all, st])
+        qtable = qtables.mean(axis=0)  # Average the Q-table between runs
+    
+        plot_states_actions_distribution(
+            states=all_states, actions=all_actions, map_size=map_size
+        )  # Sanity check
+        plot_q_values_map(qtable, env, map_size)
+        
+        winrate(rewards,params.total_episodes,params.n_runs)
+
+    env.close()
+
+if(params.calculate_energy):
+    tracker.stop()
+
+# Stop timer
+end = time.time()
+    
+# Calculate time
+time = end - start
+
+print(f"Time of execution: {time} seconds")
+
+# Plot steps and rewards
+if (params.plot_results):    
+    plot_steps_and_rewards(res_all, st_all)
